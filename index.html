@@ -597,7 +597,7 @@ footer .script{font-size:40px;color:var(--wgold)}
           else thanks('Köszönjük a visszajelzést!', 'Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.');
           break;
         case 'forbidden':
-          showErr('Hibás meghívó kód. Nézd meg a meghívódon - figyelj a kis- és nagybetűkre is!'); $('code').focus(); break;
+          showErr('Hibás meghívó kód. Nézd meg a meghívódon!'); $('code').focus(); break;
         case 'busy':
           showErr('Most sokan küldenek visszajelzést, kérjük, próbáld újra pár perc múlva.'); break;
         case 'updated':
@@ -632,7 +632,7 @@ footer .script{font-size:40px;color:var(--wgold)}
       applyStats(j.stats); fill(j.response); return;
     }
     $('unlock').classList.remove('hidden'); form.classList.add('hidden');
-    if (j.status === 'forbidden') { if (code) { ue.textContent = 'Hibás meghívó kód - figyelj a kis- és nagybetűkre is!'; ue.classList.remove('hidden'); } }
+    if (j.status === 'forbidden') { if (code) { ue.textContent = 'Hibás meghívó kód. Nézd meg a meghívódon!'; ue.classList.remove('hidden'); } }
     else if (j.status === 'notfound') {
       token = null; $('unlock').classList.add('hidden'); form.classList.remove('hidden'); $('code-field').classList.remove('hidden');
       showErr('Ez a szerkesztő link nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.');

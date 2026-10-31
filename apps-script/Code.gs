@@ -75,7 +75,7 @@ function doPost(e) {
     // Minden művelethez (új válasz, megnyitás, módosítás) kell a meghívó kód.
     const code = inviteCode_();
     if (!code) return json_({ status: 'error', message: 'Az űrlap még nincs beállítva.' });
-    if (String(d.code || '').trim() !== code) {
+    if (normCode_(d.code) !== normCode_(code)) {
       Utilities.sleep(800);                                        // próbálgatás lassítása
       return json_({ status: 'forbidden' });
     }
@@ -134,6 +134,11 @@ function doPost(e) {
 }
 
 /* ---------------- biztonság ---------------- */
+
+/** Kódösszevetés kis/nagybetűtől, szóközöktől és kötőjelektől függetlenül (könnyebb begépelni). */
+function normCode_(x) {
+  return String(x || '').toLowerCase().replace(/[\s\-_.]/g, '');
+}
 
 function inviteCode_() {
   return String(PropertiesService.getScriptProperties().getProperty('INVITE_CODE') || '').trim();

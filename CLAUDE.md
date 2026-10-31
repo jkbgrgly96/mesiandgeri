@@ -46,6 +46,7 @@ tömegközlekedés leírása, „TERVEZET” sáv az oldal tetején.
   (POST {action:'load'}); idegen böngészőben a kódot kéri („unlock”). GET csak névtelen statisztikát ad.
 - Vendégnek menő levél: SEMMI személyes adat, helyszín/dátum sincs, csak a link. Részletek csak NOTIFY_EMAILS-nek.
 - E-mail kétszer beírandó az űrlapon.
+- Kódösszevetés kis/nagybetű, szóköz, kötőjel független (normCode_).
 - Korlátok: címenként 3 levél/óra, 80 levél/nap, 60 beküldés/10 perc, 10 KB body; hibaüzenet általános (részlet a Script naplóban).
 - POST text/plain JSON-nal (nincs CORS preflight). Státuszok: ok(load) / created / updated / exists / full / notfound / invalid / forbidden / busy / error.
 - Ugyanazzal az e-maillel új beküldés nem ír felül: a meglévő szerkesztő linket kapja e-mailben.
