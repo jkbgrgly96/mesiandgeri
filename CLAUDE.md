@@ -34,8 +34,15 @@ Betűk: Cormorant Garamond (címek), Caveat (kézírásos), Nunito (szöveg).
 Elemek: zászlófüzér, szentjánosbogarak, fenyőerdő sziluett jurtákkal és tábortűzzel.
 
 ## Helykitöltők (még cserélendő)
-Program időpontjai, visszajelzési határidő (jún. 30), kapcsolat email, szabad ágyak száma (48), minta finomságok,
+Program időpontjai, visszajelzési határidő (jún. 30), kapcsolat email, szabad ágyak száma (48, Code.gs CONFIG),
 tömegközlekedés leírása, „TERVEZET” sáv az oldal tetején.
 
+## Backend állapota
+- `apps-script/Code.gs` kész (telepítés: `apps-script/README.md`). CONFIG: BEDS_TOTAL=48 (helykitöltő).
+- Frontend `API_URL` konstans az `index.html`-ben: amíg üres, bemutató mód (nem ment).
+- POST text/plain JSON-nal (nincs CORS preflight). Státuszok: created / updated / exists / full / notfound / invalid / error.
+- Ugyanazzal az e-maillel új beküldés nem ír felül: a meglévő szerkesztő linket kapja e-mailben.
+- Szerkesztő link: `?t=<token>#visszajelzes`.
+
 ## Következő lépés
-Google Sheet + Apps Script backend megírása és bekötése az űrlapba.
+A pár telepíti az Apps Scriptet és elküldi a /exec URL-t → `API_URL` beállítása, éles teszt.

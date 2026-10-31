@@ -121,6 +121,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--emerald)
 .total{font-family:Caveat,cursive;font-size:26px;color:var(--terra);font-weight:700}
 .hidden{display:none!important}
 .thanks{text-align:center;padding:30px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.err{background:#fbe9e2;border:1px solid var(--terra);color:#8a3a18;border-radius:12px;padding:10px 14px;margin-bottom:16px}
+.editbar{background:#eef6f1;border:1px solid var(--emerald);color:var(--forest);border-radius:12px;padding:10px 14px;margin-bottom:22px}
+.btn[disabled]{opacity:.6;cursor:wait}
 .thanks h3{font-size:36px;color:var(--forest)}
 
 /* map */
@@ -257,10 +261,10 @@ footer .script{font-size:40px;color:var(--wgold)}
     <div class="sec-head"><span class="script">a vendégváró asztal</span><h2>Hozz egy kis finomságot!</h2></div>
     <p class="lead">Nagyon örülnénk, ha – lehetőség szerint – hoznál valami édeset vagy sósat a vendégváró asztalra. Az űrlapon jelezd, mit hozol, így látjuk, ki mit készít, és nem lesz tizenöt tál pogácsa. (Bár az se lenne baj.)</p>
     <div class="board">
-      <div class="card sweet"><h3>Édes</h3><div class="chips" id="chips-sweet"><span class="chip">Almás pite</span><span class="chip">Zserbó</span><span class="chip">Brownie</span><span class="chip">Linzer</span><span class="chip">Diós kalács</span></div></div>
-      <div class="card salty"><h3>Sós</h3><div class="chips" id="chips-salty"><span class="chip">Pogácsa</span><span class="chip">Sajtos tallér</span><span class="chip">Hummusz + zöldség</span><span class="chip">Pizzás csiga</span></div></div>
+      <div class="card sweet"><h3>Édes</h3><div class="chips" id="chips-sweet"><span class="minta">Betöltés…</span></div></div>
+      <div class="card salty"><h3>Sós</h3><div class="chips" id="chips-salty"><span class="minta">Betöltés…</span></div></div>
     </div>
-    <p class="minta" style="text-align:center;margin-top:12px">Minta – élesben itt jelennek meg a felajánlások, nevek nélkül.</p>
+    <p class="minta" style="text-align:center;margin-top:12px">A felajánlások nevek nélkül jelennek meg.</p>
   </div>
 </section>
 
@@ -269,7 +273,9 @@ footer .script{font-size:40px;color:var(--wgold)}
     <div class="sec-head"><span class="script">számíthatunk rád?</span><h2>Visszajelzés</h2>
       <p class="help" style="margin-top:10px">Kérjük, 2027. június 30-ig jelezz vissza.</p></div>
     <div class="card stitch" style="max-width:780px;margin:0 auto;padding:36px">
+      <div class="editbar hidden" id="editbar">Szia <b id="edit-name"></b>! Itt módosíthatod a korábbi válaszaidat.</div>
       <form id="rsvp" novalidate>
+        <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
         <div class="field">
           <label class="lbl" for="name">Neved *</label>
           <input type="text" id="name" required autocomplete="name">
@@ -298,7 +304,7 @@ footer .script{font-size:40px;color:var(--wgold)}
             <input type="text" id="diet" placeholder="pl. vegetáriánus, gluténmentes…">
           </div>
           <div class="field">
-            <span class="lbl">Maradtok éjszakára? <span class="beds" id="beds">még 48 szabad jurtaágy</span></span>
+            <span class="lbl">Maradtok éjszakára? <span class="beds hidden" id="beds"></span></span>
             <div class="opts">
               <label class="opt"><input type="radio" name="night" value="jurta"><span class="box"><b>Jurtaágy</b><small>7 500 Ft / fő</small></span></label>
               <label class="opt"><input type="radio" name="night" value="sator"><span class="box"><b>Saját sátor</b><small>ingyenes</small></span></label>
@@ -324,12 +330,14 @@ footer .script{font-size:40px;color:var(--wgold)}
           <label class="lbl" for="msg">Üzenet nekünk</label>
           <textarea id="msg" rows="3"></textarea>
         </div>
-        <div style="text-align:center"><button class="btn" type="submit">Elküldöm</button></div>
+        <div class="err hidden" id="err" role="alert"></div>
+        <div style="text-align:center"><button class="btn" type="submit" id="submit">Elküldöm</button></div>
+        <p class="help" style="text-align:center;margin-top:14px">Már válaszoltál, de elvesztetted a linket? Add meg ugyanazt az e-mail címet, és újra elküldjük.</p>
       </form>
       <div class="thanks hidden" id="thanks">
         <div class="script" style="font-size:30px;color:var(--terra)">Hurrá!</div>
-        <h3>Köszönjük a visszajelzést!</h3>
-        <p>Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.</p>
+        <h3 id="thanks-title">Köszönjük a visszajelzést!</h3>
+        <p id="thanks-text">Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.</p>
         <button class="btn ghost" type="button" id="again">Vissza az űrlaphoz</button>
       </div>
     </div>
@@ -430,28 +438,151 @@ footer .script{font-size:40px;color:var(--wgold)}
     document.getElementById('cd-s').textContent=pad(s%60);};
   tick();setInterval(tick,1000);
 
-  // Form behaviour (demo only, no backend yet)
-  const form=document.getElementById('rsvp'),yes=document.getElementById('yes-part');
-  const comps=document.getElementById('companions'),jp=document.getElementById('jurta-part');
-  const jn=document.getElementById('jurta-n'),jt=document.getElementById('jurta-total');
-  const fmt=n=>n.toLocaleString('hu-HU')+' Ft';
-  const party=()=>1+comps.children.length;
-  const upd=()=>{jt.textContent=fmt(Math.max(1,+jn.value||1)*7500)};
-  form.addEventListener('change',e=>{
-    if(e.target.name==='coming')yes.classList.toggle('hidden',e.target.value!=='igen');
-    if(e.target.name==='night'){jp.classList.toggle('hidden',e.target.value!=='jurta');jn.value=party();upd();}
+  // ---------- Visszajelzés: Google Apps Script backend ----------
+  // A telepített Apps Script web app URL-je (…/exec). Üresen az oldal bemutató módban fut.
+  const API_URL = '';
+  const BED_PRICE = 7500;
+
+  const $ = id => document.getElementById(id);
+  const form = $('rsvp'), yes = $('yes-part'), comps = $('companions'), jp = $('jurta-part');
+  const jn = $('jurta-n'), jt = $('jurta-total'), err = $('err'), btn = $('submit'), beds = $('beds');
+  const fmt = n => n.toLocaleString('hu-HU') + ' Ft';
+  const party = () => 1 + [...comps.querySelectorAll('input')].filter(i => i.value.trim()).length;
+  const upd = () => { jt.textContent = fmt(Math.max(1, +jn.value || 1) * BED_PRICE); };
+  const token = new URLSearchParams(location.search).get('t');
+  let bedsLeft = null;
+
+  const showErr = m => { err.textContent = m; err.classList.toggle('hidden', !m); };
+  const setComing = v => yes.classList.toggle('hidden', v !== 'igen');
+  const setNight = v => jp.classList.toggle('hidden', v !== 'jurta');
+
+  form.addEventListener('change', e => {
+    if (e.target.name === 'coming') setComing(e.target.value);
+    if (e.target.name === 'night') { setNight(e.target.value); if (e.target.value === 'jurta') { jn.value = party(); upd(); } }
   });
-  jn.addEventListener('input',upd);
-  document.getElementById('add-comp').addEventListener('click',()=>{
-    const r=document.createElement('div');r.className='companion';
-    r.innerHTML='<input type="text" placeholder="Kísérő neve" aria-label="Kísérő neve"><select aria-label="Korcsoport"><option>felnőtt</option><option>gyerek</option></select><button type="button" class="x" aria-label="Törlés">×</button>';
-    r.querySelector('.x').onclick=()=>r.remove();comps.appendChild(r);r.querySelector('input').focus();
+  jn.addEventListener('input', upd);
+
+  function addCompanion(name = '', age = 'felnőtt') {
+    const r = document.createElement('div'); r.className = 'companion';
+    r.innerHTML = '<input type="text" placeholder="Kísérő neve" aria-label="Kísérő neve" maxlength="80">' +
+      '<select aria-label="Korcsoport"><option>felnőtt</option><option>gyerek</option></select>' +
+      '<button type="button" class="x" aria-label="Törlés">×</button>';
+    r.querySelector('input').value = name; r.querySelector('select').value = age;
+    r.querySelector('.x').onclick = () => r.remove();
+    comps.appendChild(r);
+    return r;
+  }
+  $('add-comp').addEventListener('click', () => addCompanion().querySelector('input').focus());
+
+  function chips(el, items) {
+    el.innerHTML = '';
+    if (!items.length) { el.innerHTML = '<span class="minta">Még üres – legyél te az első!</span>'; return; }
+    const count = {};
+    items.forEach(t => { const k = t.trim(); count[k] = (count[k] || 0) + 1; });
+    Object.keys(count).forEach(k => {
+      const c = document.createElement('span'); c.className = 'chip';
+      c.textContent = count[k] > 1 ? k + ' ×' + count[k] : k;
+      el.appendChild(c);
+    });
+  }
+  function applyStats(st) {
+    if (!st) return;
+    chips($('chips-sweet'), st.sweet || []);
+    chips($('chips-salty'), st.salty || []);
+    bedsLeft = st.bedsLeft;
+    beds.textContent = bedsLeft > 0 ? 'még ' + bedsLeft + ' szabad jurtaágy' : 'a jurtaágyak elfogytak';
+    beds.classList.remove('hidden');
+    const jurtaOpt = form.querySelector('input[name=night][value=jurta]');
+    jurtaOpt.disabled = bedsLeft <= 0 && !jurtaOpt.checked;
+    jn.max = Math.max(1, bedsLeft);
+  }
+
+  function fill(r) {
+    $('name').value = r.name || ''; $('email').value = r.email || '';
+    const c = form.querySelector('input[name=coming][value="' + r.coming + '"]'); if (c) c.checked = true;
+    setComing(r.coming);
+    comps.innerHTML = ''; (r.companions || []).forEach(x => addCompanion(x.name, x.age));
+    $('diet').value = r.diet || '';
+    const n = form.querySelector('input[name=night][value="' + r.night + '"]'); if (n) n.checked = true;
+    setNight(r.night); jn.value = r.beds || 1; upd();
+    form.querySelector('input[name=treat][value=edes]').checked = !!r.sweet;
+    form.querySelector('input[name=treat][value=sos]').checked = !!r.salty;
+    $('treat-what').value = r.treat || ''; $('msg').value = r.message || '';
+    $('edit-name').textContent = r.name || ''; $('editbar').classList.remove('hidden');
+    btn.textContent = 'Módosítások mentése';
+  }
+
+  function collect() {
+    const v = n => (form.querySelector('input[name=' + n + ']:checked') || {}).value || '';
+    return {
+      token: token || undefined,
+      website: $('website').value,
+      name: $('name').value.trim(), email: $('email').value.trim(),
+      coming: v('coming'),
+      companions: [...comps.children].map(r => ({ name: r.querySelector('input').value.trim(), age: r.querySelector('select').value })).filter(c => c.name),
+      diet: $('diet').value.trim(), night: v('night'), beds: +jn.value || 1,
+      sweet: form.querySelector('input[name=treat][value=edes]').checked,
+      salty: form.querySelector('input[name=treat][value=sos]').checked,
+      treat: $('treat-what').value.trim(), message: $('msg').value.trim(),
+    };
+  }
+
+  function thanks(title, text) {
+    $('thanks-title').textContent = title; $('thanks-text').textContent = text;
+    form.classList.add('hidden'); $('editbar').classList.add('hidden'); $('thanks').classList.remove('hidden');
+    $('thanks').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); showErr('');
+    const d = collect(), n = $('name'), m = $('email');
+    if (!d.name) { showErr('Kérjük, add meg a neved.'); return n.focus(); }
+    if (!d.email || !m.checkValidity()) { showErr('Kérjük, adj meg egy érvényes e-mail címet.'); return m.focus(); }
+    if (!d.coming) return showErr('Kérjük, jelöld, hogy ott leszel-e.');
+    if (d.coming === 'igen' && d.night === 'jurta') {
+      const max = 1 + d.companions.length;
+      if (d.beds > max) return showErr('Legfeljebb ' + max + ' főre kérhetsz jurtaágyat (te + a kísérőid).');
+      if (bedsLeft !== null && d.beds > bedsLeft) return showErr('Sajnos már csak ' + bedsLeft + ' szabad jurtaágy van.');
+    }
+    if (!API_URL) return thanks('Köszönjük a visszajelzést!', 'Bemutató mód – a válasz nem lett elmentve.');
+
+    btn.disabled = true; const label = btn.textContent; btn.textContent = 'Küldés…';
+    try {
+      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(d) }); // text/plain → nincs CORS preflight
+      const j = await res.json();
+      if (j.stats) applyStats(j.stats);
+      switch (j.status) {
+        case 'created':
+          thanks('Köszönjük a visszajelzést!', 'Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.'); break;
+        case 'updated':
+          thanks('Elmentettük a módosításokat!', 'A frissített válaszaidat e-mailben is elküldtük.'); break;
+        case 'exists':
+          thanks('Ezzel az e-mail címmel már válaszoltál', 'Elküldtük a szerkesztő linket erre a címre – azzal tudod módosítani a válaszaidat.'); break;
+        case 'full':
+          bedsLeft = j.bedsLeft;
+          showErr(j.bedsLeft > 0 ? 'Sajnos már csak ' + j.bedsLeft + ' szabad jurtaágy van.' : 'Sajnos a jurtaágyak elfogytak – saját sátorral viszont szívesen várunk!'); break;
+        case 'notfound':
+          showErr('Ez a szerkesztő link már nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.'); break;
+        default:
+          showErr(j.message || 'Valami hiba történt, kérjük, próbáld újra.');
+      }
+    } catch (x) {
+      showErr('Nem sikerült elküldeni – ellenőrizd az internetkapcsolatot, és próbáld újra.');
+    } finally { btn.disabled = false; btn.textContent = label; }
   });
-  form.addEventListener('submit',e=>{e.preventDefault();
-    const n=document.getElementById('name'),m=document.getElementById('email');
-    if(!n.value.trim()||!m.checkValidity()||!m.value){(n.value.trim()?m:n).focus();return;}
-    form.classList.add('hidden');document.getElementById('thanks').classList.remove('hidden');});
-  document.getElementById('again').onclick=()=>{form.classList.remove('hidden');document.getElementById('thanks').classList.add('hidden');};
+  $('again').onclick = () => { form.classList.remove('hidden'); $('thanks').classList.add('hidden'); if (token) $('editbar').classList.remove('hidden'); };
+
+  // Betöltéskor: statisztika + (ha van token) a saját válasz előtöltése
+  if (API_URL) {
+    const url = API_URL + (token ? '?action=get&token=' + encodeURIComponent(token) : '');
+    fetch(url).then(r => r.json()).then(j => {
+      applyStats(j.stats);
+      if (j.status === 'ok' && j.response) fill(j.response);
+      else if (token) showErr('Ez a szerkesztő link nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.');
+    }).catch(() => { chips($('chips-sweet'), []); chips($('chips-salty'), []); });
+  } else {
+    applyStats({ bedsLeft: 48, sweet: ['Almás pite', 'Zserbó'], salty: ['Pogácsa', 'Pogácsa', 'Sajtos tallér'] });
+  }
 })();
 </script>
 </body>
