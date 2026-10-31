@@ -39,10 +39,11 @@ tömegközlekedés leírása, „TERVEZET” sáv az oldal tetején.
 
 ## Backend állapota
 - `apps-script/Code.gs` kész (telepítés: `apps-script/README.md`). CONFIG: BEDS_TOTAL=48 (helykitöltő).
-- Frontend `API_URL` konstans az `index.html`-ben: amíg üres, bemutató mód (nem ment).
+- Frontend `API_URL` beállítva (Apps Script /exec). Üres értékkel bemutató módba vált.
+- Értesítés: CONFIG.NOTIFY_EMAILS lista (Emese + Gergő).
 - POST text/plain JSON-nal (nincs CORS preflight). Státuszok: created / updated / exists / full / notfound / invalid / error.
 - Ugyanazzal az e-maillel új beküldés nem ír felül: a meglévő szerkesztő linket kapja e-mailben.
 - Szerkesztő link: `?t=<token>#visszajelzes`.
 
 ## Következő lépés
-A pár telepíti az Apps Scriptet és elküldi a /exec URL-t → `API_URL` beállítása, éles teszt.
+Éles teszt a GitHub Pages oldalon; NOTIFY_EMAILS kitöltése; helykitöltők cseréje.

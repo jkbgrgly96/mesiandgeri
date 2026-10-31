@@ -7,7 +7,7 @@ A kód (`Code.gs`) nem tartalmaz titkos adatot, a vendégadatok csak a Sheetben 
 
 1. **Google Sheet létrehozása** – <https://sheets.new>, nevezd el pl. „Esküvő – visszajelzések”.
 2. **Bővítmények → Apps Script.** A megnyíló szerkesztőben töröld a `Code.gs` tartalmát, és másold be ezt a `Code.gs`-t.
-3. **CONFIG kitöltése** a fájl tetején: `BEDS_TOTAL` (hány jurtaágy jut a vendégeknek), opcionálisan `REPLY_TO` és `NOTIFY_EMAIL`. Mentés (Ctrl+S).
+3. **CONFIG kitöltése** a fájl tetején: `BEDS_TOTAL` (hány jurtaágy jut a vendégeknek), opcionálisan `REPLY_TO` és `NOTIFY_EMAILS` (lista: kik kapjanak értesítést). Mentés (Ctrl+S).
 4. **`setup` futtatása:** fent a függvényválasztóban válaszd a `setup`-ot → **Futtatás**.
    Engedélyezd a hozzáférést (Sheet + e-mail küldés). A „Google nem ellenőrizte ezt az alkalmazást” ablaknál:
    *Speciális → Ugrás a(z) … projektre (nem biztonságos)* – ez a saját scripted, nyugodtan engedélyezheted.

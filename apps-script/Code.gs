@@ -15,7 +15,9 @@ const CONFIG = {
   SHEET_NAME: 'Válaszok',
   COUPLE: 'Emese & Gergő',
   REPLY_TO: '',            // erre a címre mennek a vendégek válasz e-mailjei (üresen: a script tulajdonosa)
-  NOTIFY_EMAIL: '',        // ha kitöltöd, minden új/módosított visszajelzésről kapsz egy rövid értesítést
+  // Ők kapnak rövid értesítést minden új / módosított visszajelzésről. Több cím is lehet, pl.:
+  // NOTIFY_EMAILS: ['emese@example.com', 'gergo@example.com'],
+  NOTIFY_EMAILS: [],
 };
 
 const COLS = ['id', 'token', 'created', 'updated', 'name', 'email', 'coming', 'companions',
@@ -282,7 +284,8 @@ function sendLink_(rec) {
 }
 
 function notifyCouple_(v, isUpdate) {
-  if (!CONFIG.NOTIFY_EMAIL) return;
-  mail_(CONFIG.NOTIFY_EMAIL, (isUpdate ? 'Módosítás: ' : 'Új visszajelzés: ') + v.name.replace(/^'/, ''),
+  const to = (CONFIG.NOTIFY_EMAILS || []).map(x => String(x).trim()).filter(Boolean).join(',');
+  if (!to) return;
+  mail_(to, (isUpdate ? 'Módosítás: ' : 'Új visszajelzés: ') + v.name.replace(/^'/, ''),
     '<p><b>' + esc_(v.name) + '</b> (' + esc_(v.email) + ')</p>' + summary_(v));
 }
