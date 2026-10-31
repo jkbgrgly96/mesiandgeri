@@ -276,6 +276,11 @@ footer .script{font-size:40px;color:var(--wgold)}
       <div class="editbar hidden" id="editbar">Szia <b id="edit-name"></b>! Itt módosíthatod a korábbi válaszaidat.</div>
       <form id="rsvp" novalidate>
         <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+        <div class="field" id="code-field">
+          <label class="lbl" for="code">Meghívó kód *</label>
+          <input type="text" id="code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="40">
+          <div class="help">A meghívódon találod. Ha a meghívó QR-kódjával érkeztél, már ki van töltve.</div>
+        </div>
         <div class="field">
           <label class="lbl" for="name">Neved *</label>
           <input type="text" id="name" required autocomplete="name">
@@ -449,7 +454,19 @@ footer .script{font-size:40px;color:var(--wgold)}
   const fmt = n => n.toLocaleString('hu-HU') + ' Ft';
   const party = () => 1 + [...comps.querySelectorAll('input')].filter(i => i.value.trim()).length;
   const upd = () => { jt.textContent = fmt(Math.max(1, +jn.value || 1) * BED_PRICE); };
-  const token = new URLSearchParams(location.search).get('t');
+  // Szerkesztő token és meghívó kód a # után érkezik (#t=… / #k=…), így nem kerül szervernaplóba.
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (x) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (x) {} },
+  };
+  const hashP = new URLSearchParams(location.hash.slice(1));
+  const token = hashP.get('t') || new URLSearchParams(location.search).get('t');
+  const urlCode = hashP.get('k');
+  if (urlCode) store.set('mg-code', urlCode);
+  $('code').value = urlCode || store.get('mg-code') || '';
+  if (token) $('code-field').classList.add('hidden');
+  if (urlCode || location.search) history.replaceState(null, '', location.pathname + (token ? '#t=' + encodeURIComponent(token) : ''));
+  window.addEventListener('hashchange', () => { if (/(^#|&)(t|k)=/.test(location.hash)) location.reload(); });
   let bedsLeft = null;
 
   const showErr = m => { err.textContent = m; err.classList.toggle('hidden', !m); };
@@ -510,12 +527,14 @@ footer .script{font-size:40px;color:var(--wgold)}
     $('treat-what').value = r.treat || ''; $('msg').value = r.message || '';
     $('edit-name').textContent = r.name || ''; $('editbar').classList.remove('hidden');
     btn.textContent = 'Módosítások mentése';
+    $('visszajelzes').scrollIntoView();
   }
 
   function collect() {
     const v = n => (form.querySelector('input[name=' + n + ']:checked') || {}).value || '';
     return {
       token: token || undefined,
+      code: token ? undefined : $('code').value.trim(),
       website: $('website').value,
       name: $('name').value.trim(), email: $('email').value.trim(),
       coming: v('coming'),
@@ -527,8 +546,12 @@ footer .script{font-size:40px;color:var(--wgold)}
     };
   }
 
-  function thanks(title, text) {
+  function thanks(title, text, link) {
     $('thanks-title').textContent = title; $('thanks-text').textContent = text;
+    if (link) {
+      const a = document.createElement('a'); a.href = link; a.textContent = 'Szerkesztő link';
+      $('thanks-text').append(' ', a);
+    }
     form.classList.add('hidden'); $('editbar').classList.add('hidden'); $('thanks').classList.remove('hidden');
     $('thanks').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -536,6 +559,7 @@ footer .script{font-size:40px;color:var(--wgold)}
   form.addEventListener('submit', async e => {
     e.preventDefault(); showErr('');
     const d = collect(), n = $('name'), m = $('email');
+    if (!token && !d.code) { showErr('Kérjük, add meg a meghívó kódot.'); return $('code').focus(); }
     if (!d.name) { showErr('Kérjük, add meg a neved.'); return n.focus(); }
     if (!d.email || !m.checkValidity()) { showErr('Kérjük, adj meg egy érvényes e-mail címet.'); return m.focus(); }
     if (!d.coming) return showErr('Kérjük, jelöld, hogy ott leszel-e.');
@@ -553,7 +577,14 @@ footer .script{font-size:40px;color:var(--wgold)}
       if (j.stats) applyStats(j.stats);
       switch (j.status) {
         case 'created':
-          thanks('Köszönjük a visszajelzést!', 'Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.'); break;
+          store.set('mg-code', d.code);
+          if (j.mailed === false) thanks('Köszönjük a visszajelzést!', 'Most nem tudtunk e-mailt küldeni, ezért mentsd el ezt a linket - ezzel később módosíthatod a válaszaidat:', location.pathname + '#t=' + encodeURIComponent(j.token));
+          else thanks('Köszönjük a visszajelzést!', 'Küldtünk egy e-mailt a válaszaiddal és egy linkkel, amivel később módosíthatod őket.');
+          break;
+        case 'forbidden':
+          showErr('Hibás meghívó kód. Nézd meg a meghívódon - figyelj a kis- és nagybetűkre is!'); $('code').focus(); break;
+        case 'busy':
+          showErr('Most sokan küldenek visszajelzést, kérjük, próbáld újra pár perc múlva.'); break;
         case 'updated':
           thanks('Elmentettük a módosításokat!', 'A frissített válaszaidat e-mailben is elküldtük.'); break;
         case 'exists':

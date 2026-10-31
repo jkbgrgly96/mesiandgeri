@@ -41,9 +41,12 @@ tömegközlekedés leírása, „TERVEZET” sáv az oldal tetején.
 - `apps-script/Code.gs` kész (telepítés: `apps-script/README.md`). CONFIG: BEDS_TOTAL=48 (helykitöltő).
 - Frontend `API_URL` beállítva (Apps Script /exec). Üres értékkel bemutató módba vált.
 - Értesítés: CONFIG.NOTIFY_EMAILS lista (Mesi + Geri).
-- POST text/plain JSON-nal (nincs CORS preflight). Státuszok: created / updated / exists / full / notfound / invalid / error.
+- Új visszajelzéshez meghívó kód kell: Apps Script szkripttulajdonság `INVITE_CODE` (SOHA ne kerüljön a repóba!).
+  QR/meghívó link: `#k=<kód>` → localStorage-ba menti és kitölti. Szerkesztéshez a token elég.
+- Korlátok: címenként 3 levél/óra, 80 levél/nap, 60 beküldés/10 perc, 10 KB body; hibaüzenet általános (részlet a Script naplóban).
+- POST text/plain JSON-nal (nincs CORS preflight). Státuszok: created / updated / exists / full / notfound / invalid / forbidden / busy / error.
 - Ugyanazzal az e-maillel új beküldés nem ír felül: a meglévő szerkesztő linket kapja e-mailben.
-- Szerkesztő link: `?t=<token>#visszajelzes`.
+- Szerkesztő link: `#t=<token>` (régi `?t=` is működik, átírja #-ra).
 
 ## Következő lépés
 Éles teszt a GitHub Pages oldalon; NOTIFY_EMAILS kitöltése; helykitöltők cseréje.

@@ -6,6 +6,13 @@
  * - doPost : visszajelzés mentése / módosítása, visszaigazoló e-mail szerkesztő linkkel
  *
  * Telepítés: lásd apps-script/README.md
+ *
+ * Biztonság:
+ * - Új visszajelzéshez meghívó kód kell. A kód NINCS a kódban / repóban: a script tulajdonságai között
+ *   tárold (Projektbeállítások → Szkripttulajdonságok → INVITE_CODE). Ha nincs beállítva, a script nem fogad el
+ *   új visszajelzést (biztonságos alapértelmezés).
+ * - Meglévő válasz módosításához a vendég saját szerkesztő tokenje elég.
+ * - E-mail korlátok: címenként óránként MAX_MAILS_PER_ADDRESS, naponta összesen MAX_MAILS_PER_DAY.
  */
 
 const CONFIG = {
@@ -18,6 +25,11 @@ const CONFIG = {
   // Ők kapnak rövid értesítést minden új / módosított visszajelzésről. Több cím is lehet, pl.:
   // NOTIFY_EMAILS: ['emese@example.com', 'gergo@example.com'],
   NOTIFY_EMAILS: [],
+
+  MAX_MAILS_PER_ADDRESS: 3,   // ugyanarra a címre óránként legfeljebb ennyi levél
+  MAX_MAILS_PER_DAY: 80,      // összesen naponta (a Gmail keret ~100)
+  MAX_POSTS_PER_10MIN: 60,    // összes beküldés 10 percenként (botok ellen)
+  MAX_BODY_BYTES: 10000,
 };
 
 const COLS = ['id', 'token', 'created', 'updated', 'name', 'email', 'coming', 'companions',
@@ -28,8 +40,8 @@ const HEADERS = ['#', 'Token (ne módosítsd)', 'Létrehozva', 'Módosítva', 'N
 /** Egyszer futtasd le kézzel: létrehozza a fejlécet és elkéri a jogosultságokat. */
 function setup() {
   getSheet_();
-  MailApp.getRemainingDailyQuota();
   Logger.log('Kész. Napi e-mail keret: ' + MailApp.getRemainingDailyQuota());
+  Logger.log(inviteCode_() ? 'Meghívó kód beállítva.' : 'FIGYELEM: az INVITE_CODE szkripttulajdonság még nincs beállítva!');
 }
 
 /* ---------------- HTTP végpontok ---------------- */
@@ -45,16 +57,31 @@ function doGet(e) {
     }
     return json_({ status: 'ok', stats: stats_(rows) });
   } catch (err) {
-    return json_({ status: 'error', message: String(err) });
+    return fail_(err);
   }
 }
 
 function doPost(e) {
+  const body = (e && e.postData && e.postData.contents) || '';
+  if (body.length > CONFIG.MAX_BODY_BYTES) return json_({ status: 'invalid', message: 'Túl hosszú üzenet.' });
+  if (!hit_('posts', CONFIG.MAX_POSTS_PER_10MIN, 600)) return json_({ status: 'busy' });
+
   const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  if (!lock.tryLock(20000)) return json_({ status: 'busy' });
   try {
-    const d = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    let d;
+    try { d = JSON.parse(body || '{}'); } catch (x) { return json_({ status: 'invalid', message: 'Hibás kérés.' }); }
+    if (!d || typeof d !== 'object') return json_({ status: 'invalid', message: 'Hibás kérés.' });
     if (d.website) return json_({ status: 'created' });           // honeypot: botok
+
+    if (!d.token) {                                                // új visszajelzéshez meghívó kód kell
+      const code = inviteCode_();
+      if (!code) return json_({ status: 'error', message: 'Az űrlap még nincs beállítva.' });
+      if (String(d.code || '').trim() !== code) {
+        Utilities.sleep(800);                                      // próbálgatás lassítása
+        return json_({ status: 'forbidden' });
+      }
+    }
 
     const v = clean_(d);
     if (v.error) return json_({ status: 'invalid', message: v.error });
@@ -91,15 +118,49 @@ function doPost(e) {
     if (rec) sh.getRange(rec._row, 1, 1, row.length).setValues([row]);
     else sh.appendRow(row);
 
-    sendConfirmation_(v, token, !!rec);
+    const mailed = sendConfirmation_(v, token, !!rec);
     notifyCouple_(v, !!rec);
 
-    return json_({ status: rec ? 'updated' : 'created', token: token, stats: stats_(readAll_(sh)) });
+    return json_({ status: rec ? 'updated' : 'created', token: token, mailed: mailed, stats: stats_(readAll_(sh)) });
   } catch (err) {
-    return json_({ status: 'error', message: String(err) });
+    return fail_(err);
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ---------------- biztonság ---------------- */
+
+function inviteCode_() {
+  return String(PropertiesService.getScriptProperties().getProperty('INVITE_CODE') || '').trim();
+}
+
+/** Egyszerű számláló-alapú korlát a CacheService-ben. true = mehet. */
+function hit_(key, max, seconds) {
+  const cache = CacheService.getScriptCache();
+  const k = 'rl:' + key;
+  const n = Number(cache.get(k) || 0);
+  if (n >= max) return false;
+  cache.put(k, String(n + 1), seconds);
+  return true;
+}
+
+/** Levélküldés engedélyezése: címenkénti óránkénti és napi összes korlát. */
+function mailAllowed_(to) {
+  const day = Utilities.formatDate(new Date(), 'Europe/Budapest', 'yyyy-MM-dd');
+  const props = PropertiesService.getScriptProperties();
+  const sent = Number(props.getProperty('mails:' + day) || 0);
+  if (sent >= CONFIG.MAX_MAILS_PER_DAY) return false;
+  if (MailApp.getRemainingDailyQuota() < 5) return false;
+  if (!hit_('mail:' + String(to).toLowerCase(), CONFIG.MAX_MAILS_PER_ADDRESS, 3600)) return false;
+  props.setProperty('mails:' + day, String(sent + 1));
+  return true;
+}
+
+/** Hiba naplózása, a kliens csak általános üzenetet kap. */
+function fail_(err) {
+  console.error(err && err.stack || err);
+  return json_({ status: 'error', message: 'Valami hiba történt, kérjük, próbáld újra később.' });
 }
 
 /* ---------------- adatkezelés ---------------- */
@@ -218,7 +279,7 @@ function json_(o) {
 /* ---------------- e-mailek ---------------- */
 
 function editLink_(token) {
-  return CONFIG.SITE_URL + '?t=' + encodeURIComponent(token) + '#visszajelzes';
+  return CONFIG.SITE_URL + '#t=' + encodeURIComponent(token);   // # után: nem kerül a szerver naplóiba
 }
 
 function esc_(x) {
@@ -234,9 +295,11 @@ function mail_(to, subject, inner) {
     '<div style="text-align:center;color:#c8643b;font-size:14px;letter-spacing:2px;margin-bottom:18px">2027. SZEPTEMBER 25. · A CSŰR, NAGYKOVÁCSI</div>' +
     '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">' + inner + '</div>' +
     '</div></div>';
+  if (!mailAllowed_(to)) { console.warn('E-mail korlát miatt kihagyva: ' + to); return false; }
   const opts = { to: to, subject: subject, htmlBody: html, name: CONFIG.COUPLE };
   if (CONFIG.REPLY_TO) opts.replyTo = CONFIG.REPLY_TO;
   MailApp.sendEmail(opts);
+  return true;
 }
 
 function button_(token, label) {
@@ -271,7 +334,7 @@ function sendConfirmation_(v, token, isUpdate) {
     button_(token, 'Válaszaim módosítása') +
     '<p style="color:#6b6a60;font-size:13px">Ezt a linket ne oszd meg mással - aki megkapja, módosíthatja a válaszodat.</p>' +
     '<p>Ölelés,<br>' + esc_(CONFIG.COUPLE) + '</p>';
-  mail_(v.email, (isUpdate ? 'Módosított visszajelzés' : 'Visszajelzésed') + ' - ' + CONFIG.COUPLE + ' esküvője', inner);
+  return mail_(v.email, (isUpdate ? 'Módosított visszajelzés' : 'Visszajelzésed') + ' - ' + CONFIG.COUPLE + ' esküvője', inner);
 }
 
 function sendLink_(rec) {
