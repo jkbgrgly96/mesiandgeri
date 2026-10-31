@@ -11,7 +11,10 @@
  * - Új visszajelzéshez meghívó kód kell. A kód NINCS a kódban / repóban: a script tulajdonságai között
  *   tárold (Projektbeállítások → Szkripttulajdonságok → INVITE_CODE). Ha nincs beállítva, a script nem fogad el
  *   új visszajelzést (biztonságos alapértelmezés).
- * - Meglévő válasz módosításához a vendég saját szerkesztő tokenje elég.
+ * - Meglévő válasz megnyitásához / módosításához a szerkesztő link (token) ÉS a meghívó kód is kell, így ha
+ *   egy elgépelt e-mail cím miatt idegenhez jut a link, az önmagában nem elég az adatok megnézéséhez.
+ * - A vendégnek küldött levél nem tartalmaz személyes adatot (nevet, kísérőket, étkezési igényt, üzenetet),
+ *   csak a szerkesztő linket. A részletes összefoglaló csak a pár értesítőjében van (NOTIFY_EMAILS).
  * - E-mail korlátok: címenként óránként MAX_MAILS_PER_ADDRESS, naponta összesen MAX_MAILS_PER_DAY.
  */
 
@@ -49,13 +52,8 @@ function setup() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   try {
-    const rows = readAll_(getSheet_());
-    if (p.action === 'get') {
-      const rec = findByToken_(rows, p.token);
-      if (!rec) return json_({ status: 'notfound' });
-      return json_({ status: 'ok', response: publicRecord_(rec), stats: stats_(rows, rec.token) });
-    }
-    return json_({ status: 'ok', stats: stats_(rows) });
+    // Csak névtelen statisztika. Saját válasz megnyitása: POST {action:'load', token, code}.
+    return json_({ status: 'ok', stats: stats_(readAll_(getSheet_())) });
   } catch (err) {
     return fail_(err);
   }
@@ -74,13 +72,19 @@ function doPost(e) {
     if (!d || typeof d !== 'object') return json_({ status: 'invalid', message: 'Hibás kérés.' });
     if (d.website) return json_({ status: 'created' });           // honeypot: botok
 
-    if (!d.token) {                                                // új visszajelzéshez meghívó kód kell
-      const code = inviteCode_();
-      if (!code) return json_({ status: 'error', message: 'Az űrlap még nincs beállítva.' });
-      if (String(d.code || '').trim() !== code) {
-        Utilities.sleep(800);                                      // próbálgatás lassítása
-        return json_({ status: 'forbidden' });
-      }
+    // Minden művelethez (új válasz, megnyitás, módosítás) kell a meghívó kód.
+    const code = inviteCode_();
+    if (!code) return json_({ status: 'error', message: 'Az űrlap még nincs beállítva.' });
+    if (String(d.code || '').trim() !== code) {
+      Utilities.sleep(800);                                        // próbálgatás lassítása
+      return json_({ status: 'forbidden' });
+    }
+
+    if (d.action === 'load') {                                     // saját válasz megnyitása szerkesztésre
+      const rows = readAll_(getSheet_());
+      const rec = findByToken_(rows, d.token);
+      if (!rec) return json_({ status: 'notfound' });
+      return json_({ status: 'ok', response: publicRecord_(rec), stats: stats_(rows, rec.token) });
     }
 
     const v = clean_(d);
@@ -146,13 +150,13 @@ function hit_(key, max, seconds) {
 }
 
 /** Levélküldés engedélyezése: címenkénti óránkénti és napi összes korlát. */
-function mailAllowed_(to) {
+function mailAllowed_(to, internal) {
   const day = Utilities.formatDate(new Date(), 'Europe/Budapest', 'yyyy-MM-dd');
   const props = PropertiesService.getScriptProperties();
   const sent = Number(props.getProperty('mails:' + day) || 0);
   if (sent >= CONFIG.MAX_MAILS_PER_DAY) return false;
   if (MailApp.getRemainingDailyQuota() < 5) return false;
-  if (!hit_('mail:' + String(to).toLowerCase(), CONFIG.MAX_MAILS_PER_ADDRESS, 3600)) return false;
+  if (!internal && !hit_('mail:' + String(to).toLowerCase(), CONFIG.MAX_MAILS_PER_ADDRESS, 3600)) return false;
   props.setProperty('mails:' + day, String(sent + 1));
   return true;
 }
@@ -287,15 +291,15 @@ function esc_(x) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function mail_(to, subject, inner) {
+function mail_(to, subject, inner, internal) {
   const html =
     '<div style="background:#f7f1e3;padding:24px;font-family:Georgia,serif;color:#2c2b26">' +
     '<div style="max-width:560px;margin:0 auto;background:#fcf8ef;border-radius:14px;padding:28px;border:1px dashed #a9bfa3">' +
     '<div style="text-align:center;color:#0d7a57;font-size:26px;font-style:italic">' + esc_(CONFIG.COUPLE) + '</div>' +
-    '<div style="text-align:center;color:#c8643b;font-size:14px;letter-spacing:2px;margin-bottom:18px">2027. SZEPTEMBER 25. · A CSŰR, NAGYKOVÁCSI</div>' +
+    '<div style="height:14px"></div>' +
     '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">' + inner + '</div>' +
     '</div></div>';
-  if (!mailAllowed_(to)) { console.warn('E-mail korlát miatt kihagyva: ' + to); return false; }
+  if (!mailAllowed_(to, internal)) { console.warn('E-mail korlát miatt kihagyva: ' + to); return false; }
   const opts = { to: to, subject: subject, htmlBody: html, name: CONFIG.COUPLE };
   if (CONFIG.REPLY_TO) opts.replyTo = CONFIG.REPLY_TO;
   MailApp.sendEmail(opts);
@@ -324,31 +328,35 @@ function summary_(v) {
     '<td style="padding:6px 8px">' + esc_(r[1]) + '</td></tr>').join('') + '</table>';
 }
 
+/**
+ * A vendégnek küldött levelek SZÁNDÉKOSAN nem tartalmaznak személyes adatot (név, kísérők, étkezési igény,
+ * üzenet, éjszakázás), sem a helyszínt/időpontot: ha a cím el van gépelve, az idegen címzett csak egy linket kap,
+ * ami a meghívó kód nélkül nem nyitható meg. Egy címzett, nincs CC/BCC.
+ */
 function sendConfirmation_(v, token, isUpdate) {
-  const hello = '<p>Kedves ' + esc_(v.name) + '!</p>';
-  const intro = v.coming === 'igen'
-    ? '<p>' + (isUpdate ? 'Elmentettük a módosításaidat.' : 'Nagyon örülünk, hogy velünk ünnepelsz!') + ' Ezt rögzítettük:</p>'
-    : '<p>' + (isUpdate ? 'Elmentettük a módosításaidat.' : 'Köszönjük, hogy jelezted - nagyon fogsz hiányozni!') + '</p>';
-  const inner = hello + intro + summary_(v) +
-    '<p>Ha bármi változik, ezzel a gombbal bármikor módosíthatod a válaszaidat:</p>' +
-    button_(token, 'Válaszaim módosítása') +
-    '<p style="color:#6b6a60;font-size:13px">Ezt a linket ne oszd meg mással - aki megkapja, módosíthatja a válaszodat.</p>' +
+  const inner = '<p>Kedves Vendégünk!</p>' +
+    '<p>' + (isUpdate ? 'Elmentettük a visszajelzésed módosítását.' : 'Megkaptuk a visszajelzésedet, köszönjük!') + '</p>' +
+    '<p>A válaszaidat ezzel a gombbal nézheted meg és módosíthatod. A megnyitáshoz a meghívón szereplő kód is kell.</p>' +
+    button_(token, 'Válaszaim megnyitása') +
+    '<p style="color:#6b6a60;font-size:13px">Ha nem te töltötted ki az űrlapot, valaki valószínűleg elgépelte az e-mail címét - ' +
+    'kérjük, hagyd figyelmen kívül ezt a levelet.</p>' +
     '<p>Ölelés,<br>' + esc_(CONFIG.COUPLE) + '</p>';
-  return mail_(v.email, (isUpdate ? 'Módosított visszajelzés' : 'Visszajelzésed') + ' - ' + CONFIG.COUPLE + ' esküvője', inner);
+  return mail_(v.email, (isUpdate ? 'Visszajelzés módosítva' : 'Visszajelzés megérkezett') + ' - ' + CONFIG.COUPLE, inner);
 }
 
 function sendLink_(rec) {
-  const inner = '<p>Kedves ' + esc_(rec.name) + '!</p>' +
-    '<p>Ezzel az e-mail címmel már küldtél visszajelzést. Az alábbi gombbal megnézheted és módosíthatod:</p>' +
+  const inner = '<p>Kedves Vendégünk!</p>' +
+    '<p>Ezzel az e-mail címmel már érkezett visszajelzés. Az alábbi gombbal megnyithatod és módosíthatod ' +
+    '(a meghívón szereplő kód is kell hozzá):</p>' +
     button_(rec.token, 'Válaszaim megnyitása') +
     '<p style="color:#6b6a60;font-size:13px">Ha nem te kérted ezt a levelet, nyugodtan hagyd figyelmen kívül.</p>' +
     '<p>Ölelés,<br>' + esc_(CONFIG.COUPLE) + '</p>';
-  mail_(String(rec.email), 'Szerkesztő link a visszajelzésedhez - ' + CONFIG.COUPLE, inner);
+  mail_(String(rec.email), 'Szerkesztő link - ' + CONFIG.COUPLE, inner);
 }
 
 function notifyCouple_(v, isUpdate) {
   const to = (CONFIG.NOTIFY_EMAILS || []).map(x => String(x).trim()).filter(Boolean).join(',');
   if (!to) return;
   mail_(to, (isUpdate ? 'Módosítás: ' : 'Új visszajelzés: ') + v.name.replace(/^'/, ''),
-    '<p><b>' + esc_(v.name) + '</b> (' + esc_(v.email) + ')</p>' + summary_(v));
+    '<p><b>' + esc_(v.name) + '</b> (' + esc_(v.email) + ')</p>' + summary_(v), true);
 }

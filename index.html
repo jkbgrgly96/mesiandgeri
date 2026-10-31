@@ -125,6 +125,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--emerald)
 .err{background:#fbe9e2;border:1px solid var(--terra);color:#8a3a18;border-radius:12px;padding:10px 14px;margin-bottom:16px}
 .editbar{background:#eef6f1;border:1px solid var(--emerald);color:var(--forest);border-radius:12px;padding:10px 14px;margin-bottom:22px}
 .btn[disabled]{opacity:.6;cursor:wait}
+.unlock-row{display:flex;gap:10px;flex-wrap:wrap}.unlock-row input{flex:1;min-width:180px}
 .thanks h3{font-size:36px;color:var(--forest)}
 
 /* map */
@@ -274,6 +275,14 @@ footer .script{font-size:40px;color:var(--wgold)}
       <p class="help" style="margin-top:10px">Kérjük, 2027. június 30-ig jelezz vissza.</p></div>
     <div class="card stitch" style="max-width:780px;margin:0 auto;padding:36px">
       <div class="editbar hidden" id="editbar">Szia <b id="edit-name"></b>! Itt módosíthatod a korábbi válaszaidat.</div>
+      <div class="unlock hidden" id="unlock">
+        <p style="margin-top:0">A válaszaid megnyitásához add meg a meghívón szereplő kódot.</p>
+        <div class="unlock-row">
+          <input type="text" id="unlock-code" aria-label="Meghívó kód" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="40">
+          <button type="button" class="btn" id="unlock-btn">Megnyitás</button>
+        </div>
+        <div class="err hidden" id="unlock-err" role="alert" style="margin:12px 0 0"></div>
+      </div>
       <form id="rsvp" novalidate>
         <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
         <div class="field" id="code-field">
@@ -289,6 +298,11 @@ footer .script{font-size:40px;color:var(--wgold)}
           <label class="lbl" for="email">E-mail címed *</label>
           <input type="email" id="email" required autocomplete="email">
           <div class="help">Erre küldjük a linket, amivel később bármikor módosíthatod a válaszaidat.</div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="email2">E-mail címed még egyszer *</label>
+          <input type="email" id="email2" required autocomplete="off">
+          <div class="help">Kérjük, gépeld be újra (ne másold), így biztosan nem megy el a levél egy idegen címre.</div>
         </div>
         <div class="field">
           <span class="lbl">Ott leszel?</span>
@@ -460,7 +474,7 @@ footer .script{font-size:40px;color:var(--wgold)}
     set(k, v) { try { localStorage.setItem(k, v); } catch (x) {} },
   };
   const hashP = new URLSearchParams(location.hash.slice(1));
-  const token = hashP.get('t') || new URLSearchParams(location.search).get('t');
+  let token = hashP.get('t') || new URLSearchParams(location.search).get('t');
   const urlCode = hashP.get('k');
   if (urlCode) store.set('mg-code', urlCode);
   $('code').value = urlCode || store.get('mg-code') || '';
@@ -515,7 +529,7 @@ footer .script{font-size:40px;color:var(--wgold)}
   }
 
   function fill(r) {
-    $('name').value = r.name || ''; $('email').value = r.email || '';
+    $('name').value = r.name || ''; $('email').value = r.email || ''; $('email2').value = r.email || '';
     const c = form.querySelector('input[name=coming][value="' + r.coming + '"]'); if (c) c.checked = true;
     setComing(r.coming);
     comps.innerHTML = ''; (r.companions || []).forEach(x => addCompanion(x.name, x.age));
@@ -534,7 +548,7 @@ footer .script{font-size:40px;color:var(--wgold)}
     const v = n => (form.querySelector('input[name=' + n + ']:checked') || {}).value || '';
     return {
       token: token || undefined,
-      code: token ? undefined : $('code').value.trim(),
+      code: $('code').value.trim(),
       website: $('website').value,
       name: $('name').value.trim(), email: $('email').value.trim(),
       coming: v('coming'),
@@ -558,10 +572,11 @@ footer .script{font-size:40px;color:var(--wgold)}
 
   form.addEventListener('submit', async e => {
     e.preventDefault(); showErr('');
-    const d = collect(), n = $('name'), m = $('email');
-    if (!token && !d.code) { showErr('Kérjük, add meg a meghívó kódot.'); return $('code').focus(); }
+    const d = collect(), n = $('name'), m = $('email'), m2 = $('email2');
+    if (!d.code) { showErr('Kérjük, add meg a meghívó kódot.'); return $('code').focus(); }
     if (!d.name) { showErr('Kérjük, add meg a neved.'); return n.focus(); }
     if (!d.email || !m.checkValidity()) { showErr('Kérjük, adj meg egy érvényes e-mail címet.'); return m.focus(); }
+    if (d.email.toLowerCase() !== m2.value.trim().toLowerCase()) { showErr('A két e-mail cím nem egyezik - kérjük, ellenőrizd.'); return m2.focus(); }
     if (!d.coming) return showErr('Kérjük, jelöld, hogy ott leszel-e.');
     if (d.coming === 'igen' && d.night === 'jurta') {
       const max = 1 + d.companions.length;
@@ -593,6 +608,7 @@ footer .script{font-size:40px;color:var(--wgold)}
           bedsLeft = j.bedsLeft;
           showErr(j.bedsLeft > 0 ? 'Sajnos már csak ' + j.bedsLeft + ' szabad jurtaágy van.' : 'Sajnos a jurtaágyak elfogytak - saját sátorral viszont szívesen várunk!'); break;
         case 'notfound':
+          token = null; $('code-field').classList.remove('hidden');
           showErr('Ez a szerkesztő link már nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.'); break;
         default:
           showErr(j.message || 'Valami hiba történt, kérjük, próbáld újra.');
@@ -603,14 +619,38 @@ footer .script{font-size:40px;color:var(--wgold)}
   });
   $('again').onclick = () => { form.classList.remove('hidden'); $('thanks').classList.add('hidden'); if (token) $('editbar').classList.remove('hidden'); };
 
-  // Betöltéskor: statisztika + (ha van token) a saját válasz előtöltése
+  // Saját válasz megnyitása: szerkesztő link (token) + meghívó kód kell hozzá.
+  async function loadMine(code) {
+    const ue = $('unlock-err'); ue.classList.add('hidden');
+    let j;
+    try {
+      j = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'load', token: token, code: code }) }).then(r => r.json());
+    } catch (x) { j = { status: 'neterr' }; }
+    if (j.status === 'ok') {
+      store.set('mg-code', code); $('code').value = code;
+      $('unlock').classList.add('hidden'); form.classList.remove('hidden');
+      applyStats(j.stats); fill(j.response); return;
+    }
+    $('unlock').classList.remove('hidden'); form.classList.add('hidden');
+    if (j.status === 'forbidden') { if (code) { ue.textContent = 'Hibás meghívó kód - figyelj a kis- és nagybetűkre is!'; ue.classList.remove('hidden'); } }
+    else if (j.status === 'notfound') {
+      token = null; $('unlock').classList.add('hidden'); form.classList.remove('hidden'); $('code-field').classList.remove('hidden');
+      showErr('Ez a szerkesztő link nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.');
+    } else { ue.textContent = 'Nem sikerült megnyitni, kérjük, próbáld újra.'; ue.classList.remove('hidden'); }
+  }
+  $('unlock-btn').onclick = () => { const c = $('unlock-code').value.trim(); if (c) loadMine(c); };
+  $('unlock-code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('unlock-btn').click(); } });
+
+  // Betöltéskor: névtelen statisztika; ha szerkesztő linkkel jött, a saját válasz megnyitása
   if (API_URL) {
-    const url = API_URL + (token ? '?action=get&token=' + encodeURIComponent(token) : '');
-    fetch(url).then(r => r.json()).then(j => {
-      applyStats(j.stats);
-      if (j.status === 'ok' && j.response) fill(j.response);
-      else if (token) showErr('Ez a szerkesztő link nem érvényes. Küldd el az űrlapot az e-mail címeddel, és új linket kapsz.');
-    }).catch(() => { chips($('chips-sweet'), []); chips($('chips-salty'), []); });
+    fetch(API_URL).then(r => r.json()).then(j => applyStats(j.stats))
+      .catch(() => { chips($('chips-sweet'), []); chips($('chips-salty'), []); });
+    if (token) {
+      form.classList.add('hidden');
+      const saved = store.get('mg-code');
+      if (saved) loadMine(saved); else $('unlock').classList.remove('hidden');
+      $('visszajelzes').scrollIntoView();
+    }
   } else {
     applyStats({ bedsLeft: 48, sweet: ['Almás pite', 'Zserbó'], salty: ['Pogácsa', 'Pogácsa', 'Sajtos tallér'] });
   }

@@ -36,7 +36,12 @@ A kód (`Code.gs`) nem tartalmaz titkos adatot, a vendégadatok csak a Sheetben 
 
 ## Biztonság
 
-- Új visszajelzéshez meghívó kód kell (`INVITE_CODE` szkripttulajdonság); módosításhoz a vendég saját szerkesztő linkje elég.
+- Minden művelethez meghívó kód kell (`INVITE_CODE` szkripttulajdonság): új válasz, saját válasz megnyitása és módosítása is.
+  A szerkesztő link önmagában nem elég - ha elgépelt cím miatt idegenhez kerül, kód nélkül nem nyitható meg.
+- A vendégnek küldött levél nem tartalmaz személyes adatot (név, kísérők, étkezési igény, üzenet), sem helyszínt/időpontot,
+  csak a szerkesztő linket. Egy címzett, nincs CC/BCC. Részletes összefoglaló csak a `NOTIFY_EMAILS` címekre megy.
+- Az űrlapon az e-mail címet kétszer kell beírni (elgépelés ellen).
+- A levelek a script tulajdonosának Google fiókjából mennek: érdemes ehhez egy külön, esküvős Gmail fiókot használni.
 - QR-kódos meghívó link: `https://jkbgrgly96.github.io/mesiandgeri/#k=<kód URL-kódolva>` - a kód a böngészőben marad, kitölti az űrlapot.
 - Szerkesztő link: `…/#t=<token>` - a # utáni rész nem jut el a szerverhez, nem kerül naplókba.
 - E-mail korlátok: címenként óránként 3, naponta összesen 80 levél (CONFIG-ban állítható).
