@@ -1,4 +1,4 @@
-# Emese & Gergő – esküvői weboldal
+# Mesi & Geri – esküvői weboldal
 
 Esküvő: 2027. szeptember 25., A Csűr (Sztrilich Pál Cserkészpark, Nagykovácsi)
 

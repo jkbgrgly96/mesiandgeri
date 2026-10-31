@@ -1,6 +1,6 @@
 # Esküvői weboldal – projekt kontextus
 
-Emese & Gergő esküvői oldala. Magyar nyelvű, statikus oldal GitHub Pages-en.
+Mesi & Geri esküvői oldala. Magyar nyelvű, statikus oldal GitHub Pages-en.
 Repo: https://github.com/jkbgrgly96/mesiandgeri → https://jkbgrgly96.github.io/mesiandgeri/
 
 ## Esküvő adatai
@@ -28,7 +28,7 @@ Repo: https://github.com/jkbgrgly96/mesiandgeri → https://jkbgrgly96.github.io
 
 ## Dizájn
 Természetes erdei boho + játékos fesztivál hangulat. Eljegyzési gyűrű: elf stílusú, fehérarany, smaragd kő
-→ logó: fehérarany levélkoszorú smaragddal, „E&G”.
+→ logó: fehérarany levélkoszorú smaragddal, „M&G”.
 Színek: erdőzöld #14322a, smaragd #0d7a57, zsálya #a9bfa3, krém #f7f1e3, terrakotta #c8643b, mustár #e3a83a, púder #e8b7a2.
 Betűk: Cormorant Garamond (címek), Caveat (kézírásos), Nunito (szöveg).
 Elemek: zászlófüzér, szentjánosbogarak, fenyőerdő sziluett jurtákkal és tábortűzzel.
@@ -40,7 +40,7 @@ tömegközlekedés leírása, „TERVEZET” sáv az oldal tetején.
 ## Backend állapota
 - `apps-script/Code.gs` kész (telepítés: `apps-script/README.md`). CONFIG: BEDS_TOTAL=48 (helykitöltő).
 - Frontend `API_URL` beállítva (Apps Script /exec). Üres értékkel bemutató módba vált.
-- Értesítés: CONFIG.NOTIFY_EMAILS lista (Emese + Gergő).
+- Értesítés: CONFIG.NOTIFY_EMAILS lista (Mesi + Geri).
 - POST text/plain JSON-nal (nincs CORS preflight). Státuszok: created / updated / exists / full / notfound / invalid / error.
 - Ugyanazzal az e-maillel új beküldés nem ír felül: a meglévő szerkesztő linket kapja e-mailben.
 - Szerkesztő link: `?t=<token>#visszajelzes`.

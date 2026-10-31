@@ -1,5 +1,5 @@
 /**
- * Emese & Gergő – esküvői visszajelzések backendje (Google Apps Script)
+ * Mesi & Geri - esküvői visszajelzések backendje (Google Apps Script)
  *
  * A Google Sheethez kötött script (Bővítmények → Apps Script).
  * - doGet  : névtelen statisztika (finomságlista, szabad jurtaágyak) + saját válasz lekérése tokennel
@@ -13,7 +13,7 @@ const CONFIG = {
   BEDS_TOTAL: 48,          // összes kiadható jurtaágy a vendégeknek
   BED_PRICE: 7500,         // Ft / fő / éj
   SHEET_NAME: 'Válaszok',
-  COUPLE: 'Emese & Gergő',
+  COUPLE: 'Mesi & Geri',
   REPLY_TO: '',            // erre a címre mennek a vendégek válasz e-mailjei (üresen: a script tulajdonosa)
   // Ők kapnak rövid értesítést minden új / módosított visszajelzésről. Több cím is lehet, pl.:
   // NOTIFY_EMAILS: ['emese@example.com', 'gergo@example.com'],
@@ -246,14 +246,14 @@ function button_(token, label) {
 }
 
 function summary_(v) {
-  const nightTxt = { jurta: 'jurtaágy – ' + v.beds + ' fő, ' + v.cost.toLocaleString('hu-HU') + ' Ft',
-    sator: 'saját sátor', nem: 'nem maradtok éjszakára', '': '–' }[v.night];
+  const nightTxt = { jurta: 'jurtaágy - ' + v.beds + ' fő, ' + v.cost.toLocaleString('hu-HU') + ' Ft',
+    sator: 'saját sátor', nem: 'nem maradtok éjszakára', '': '-' }[v.night];
   const rows = v.coming === 'igen' ? [
     ['Ott leszel', 'igen'],
-    ['Kísérők', v.companionsText || '–'],
-    ['Étkezési igény', v.diet || '–'],
+    ['Kísérők', v.companionsText || '-'],
+    ['Étkezési igény', v.diet || '-'],
     ['Éjszaka', nightTxt],
-    ['Finomság', [v.sweet ? 'édes' : '', v.salty ? 'sós' : ''].filter(Boolean).join(' + ') + (v.treat ? ': ' + v.treat : '') || '–'],
+    ['Finomság', [v.sweet ? 'édes' : '', v.salty ? 'sós' : ''].filter(Boolean).join(' + ') + (v.treat ? ': ' + v.treat : '') || '-'],
   ] : [['Ott leszel', 'sajnos nem']];
   if (v.message) rows.push(['Üzenet', v.message]);
   return '<table style="width:100%;border-collapse:collapse">' + rows.map(r =>
@@ -265,13 +265,13 @@ function sendConfirmation_(v, token, isUpdate) {
   const hello = '<p>Kedves ' + esc_(v.name) + '!</p>';
   const intro = v.coming === 'igen'
     ? '<p>' + (isUpdate ? 'Elmentettük a módosításaidat.' : 'Nagyon örülünk, hogy velünk ünnepelsz!') + ' Ezt rögzítettük:</p>'
-    : '<p>' + (isUpdate ? 'Elmentettük a módosításaidat.' : 'Köszönjük, hogy jelezted – nagyon fogsz hiányozni!') + '</p>';
+    : '<p>' + (isUpdate ? 'Elmentettük a módosításaidat.' : 'Köszönjük, hogy jelezted - nagyon fogsz hiányozni!') + '</p>';
   const inner = hello + intro + summary_(v) +
     '<p>Ha bármi változik, ezzel a gombbal bármikor módosíthatod a válaszaidat:</p>' +
     button_(token, 'Válaszaim módosítása') +
-    '<p style="color:#6b6a60;font-size:13px">Ezt a linket ne oszd meg mással – aki megkapja, módosíthatja a válaszodat.</p>' +
+    '<p style="color:#6b6a60;font-size:13px">Ezt a linket ne oszd meg mással - aki megkapja, módosíthatja a válaszodat.</p>' +
     '<p>Ölelés,<br>' + esc_(CONFIG.COUPLE) + '</p>';
-  mail_(v.email, (isUpdate ? 'Módosított visszajelzés' : 'Visszajelzésed') + ' – ' + CONFIG.COUPLE + ' esküvője', inner);
+  mail_(v.email, (isUpdate ? 'Módosított visszajelzés' : 'Visszajelzésed') + ' - ' + CONFIG.COUPLE + ' esküvője', inner);
 }
 
 function sendLink_(rec) {
@@ -280,7 +280,7 @@ function sendLink_(rec) {
     button_(rec.token, 'Válaszaim megnyitása') +
     '<p style="color:#6b6a60;font-size:13px">Ha nem te kérted ezt a levelet, nyugodtan hagyd figyelmen kívül.</p>' +
     '<p>Ölelés,<br>' + esc_(CONFIG.COUPLE) + '</p>';
-  mail_(String(rec.email), 'Szerkesztő link a visszajelzésedhez – ' + CONFIG.COUPLE, inner);
+  mail_(String(rec.email), 'Szerkesztő link a visszajelzésedhez - ' + CONFIG.COUPLE, inner);
 }
 
 function notifyCouple_(v, isUpdate) {
